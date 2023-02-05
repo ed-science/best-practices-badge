@@ -19,14 +19,14 @@ from urllib.request import urlopen
 cached_filename = 'projects.json'
 
 # This is the base URL for project data.
-base_url = 'https://bestpractices.coreinfrastructure.org/' + cached_filename
+base_url = f'https://bestpractices.coreinfrastructure.org/{cached_filename}'
 
 # Retrieve paged JSON data
 def retrieve_data():
     retrieved_dataset = []
     page_number = 1
     while True:
-        url = base_url + '?page=' + str(page_number)
+        url = f'{base_url}?page={str(page_number)}'
         page_string = urlopen(url).read()
         page_data = json.loads(page_string)
         print(page_number, file=sys.stderr)
@@ -40,14 +40,14 @@ def retrieve_data():
 # Load JSON data (from a file if possible, else it's retrieved and saved)
 def load_data():
     if os.path.exists(cached_filename):
-        print('Loading existing file: %s' % cached_filename, file=sys.stderr)
+        print(f'Loading existing file: {cached_filename}', file=sys.stderr)
         f = open(cached_filename, 'r')
         return json.load(f)
     else:
         print('Retrieving data', file=sys.stderr)
         retrieved_dataset = retrieve_data()
         # Save data into file so we don't need to retrieve later
-        print('Saving data to file: %s' % cached_filename, file=sys.stderr)
+        print(f'Saving data to file: {cached_filename}', file=sys.stderr)
         f = open(cached_filename, 'w')
         json.dump(retrieved_dataset, f)
         return retrieved_dataset
