@@ -83,14 +83,11 @@ def patch_project(base_url, id, updated_data,
 
     # Originally we tried to PATCH the JSON endpoint, but we never
     # got that working. So instead we PATCH the HTML endpoint:
-    url = base_url + 'en/projects/' + str(id)
+    url = f'{base_url}en/projects/{str(id)}'
 
-    # Convert updated_data hashes of form {'test_status': 'Unmet'}
-    # into {'project[test_status]': 'Unmet'} because that's what the
-    # HTML form submission format requires.
-    updated_data_reformatted = {}
-    for key, value in updated_data.items():
-        updated_data_reformatted['project[' + key + ']'] = value
+    updated_data_reformatted = {
+        f'project[{key}]': value for key, value in updated_data.items()
+    }
     # Add authentication_token
     updated_data_reformatted['authentication_token'] = auth_token
 
@@ -104,7 +101,7 @@ def patch_project(base_url, id, updated_data,
             data=updated_data_encoded, method='PATCH')
     # Provide authentication cookie to prove we're authorized to update.
     # Beware: add_header can only add *one* Cookie header
-    request.add_header('Cookie', COOKIE_NAME + '=' + session_cookie)
+    request.add_header('Cookie', f'{COOKIE_NAME}={session_cookie}')
     request.add_header('X-CSRF-Token', csrf_token)
     # Note: We don't send an origin; Rails considers that a valid origin.
     # Originally we tried to post JSON, but had trouble getting that working.
@@ -119,7 +116,7 @@ def patch_project(base_url, id, updated_data,
         if e.code == 302 and e.headers['Location'] == url:
             # EXPECTED result - everything is fine!
             return 200
-        error('Warning: Received HTTPError, code=' + str(e.code))
+        error(f'Warning: Received HTTPError, code={str(e.code)}')
         error('This can happen on localhost if project badge status changes.')
         return 500
 
@@ -139,12 +136,10 @@ CSRF_TOKEN_HTML_PATTERN = re.compile(
 
 def get_token(html, pattern):
     """Return string token in provided HTML that matches pattern."""
-    result = pattern.search(html)
-    if result:
+    if result := pattern.search(html):
         return result.group(1)
-    else:
-        error('Failed to find token')
-        return None
+    error('Failed to find token')
+    return None
 
 def get_updated_cookie(headers, session_cookie):
     """Retrieve the updated session cookie"""
@@ -155,22 +150,21 @@ def get_updated_cookie(headers, session_cookie):
     if set_cookie is None:
         error('Warning: No cookie updated')
         return session_cookie
-    expected_prefix = COOKIE_NAME + '='
+    expected_prefix = f'{COOKIE_NAME}='
     if not set_cookie.startswith(expected_prefix):
         error('Warning: Wrong cookie set')
         return session_cookie
     leftover = set_cookie[len(expected_prefix):]
-    new_session_cookie = leftover.split(';',1)[0]
-    return new_session_cookie
+    return leftover.split(';',1)[0]
 
 def get_project_tokens(base_url, id, session_cookie):
     """Returns auth_token,csrf_token,session_cookie for project id."""
     # Try to get the "edit" page with our logged-in session cookie
-    url = base_url + 'en/projects/' + str(id) + '/edit'
+    url = f'{base_url}en/projects/{str(id)}/edit'
     request = urllib.request.Request(url)
     # Provide authentication cookie to prove we're authorized to get page.
     # Beware: add_header can only add *one* Cookie header
-    request.add_header('Cookie', COOKIE_NAME + '=' + session_cookie)
+    request.add_header('Cookie', f'{COOKIE_NAME}={session_cookie}')
     # Note: We don't send an origin; Rails considers that a valid origin.
 
     # Note: This will raise exception on open failure
@@ -217,9 +211,13 @@ def main():
             description='Modify project data on BadgeApp',
             epilog=__doc__
     )
-    parser.add_argument('-C', '--cookie',
-        help='Session cookie value, else uses env variable ' + COOKIE_NAME,
-        dest='session_cookie', default=os.environ.get(COOKIE_NAME))
+    parser.add_argument(
+        '-C',
+        '--cookie',
+        help=f'Session cookie value, else uses env variable {COOKIE_NAME}',
+        dest='session_cookie',
+        default=os.environ.get(COOKIE_NAME),
+    )
     # Make it easy to select base URL
     group_base = parser.add_mutually_exclusive_group()
     group_base.add_argument('-b', '--base', dest='base_url',
@@ -257,8 +255,7 @@ def main():
     updated_data_json = json.loads(args.updated_data)
 
     # Notify what we're doing.
-    error("Writing data to project " + args.project_id +
-          " at base URL " + args.base_url)
+    error(f"Writing data to project {args.project_id} at base URL {args.base_url}")
 
     # Now go do it!
     result = write_to_project(args.base_url,
